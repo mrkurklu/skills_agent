@@ -1,0 +1,17 @@
+[
+  {
+    "step_id": "get_user_data",
+    "skill_name": "api_request",
+    "inputs": {
+      "url": "https://jsonplaceholder.typicode.com/users/1",
+      "method": "GET"
+    }
+  },
+  {
+    "step_id": "write_report",
+    "skill_name": "run_command",
+    "inputs": {
+      "command": "echo '{get_user_data.result}' > kullanici_rapor.txt"
+    }
+  }
+]

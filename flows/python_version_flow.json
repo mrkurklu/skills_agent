@@ -1,0 +1,9 @@
+[
+  {
+    "step_id": "get_python_version",
+    "skill_name": "run_command",
+    "inputs": {
+      "command": "python --version"
+    }
+  }
+]

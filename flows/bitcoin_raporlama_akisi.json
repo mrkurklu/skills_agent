@@ -1,0 +1,17 @@
+[
+  {
+    "step_id": "fetch_btc_data",
+    "skill_name": "api_request",
+    "inputs": {
+      "url": "https://api.coindesk.com/v1/bpi/currentprice.json",
+      "method": "GET"
+    }
+  },
+  {
+    "step_id": "write_report",
+    "skill_name": "run_command",
+    "inputs": {
+      "command": "echo '{fetch_btc_data.result}' > bitcoin_rapor.txt"
+    }
+  }
+]
