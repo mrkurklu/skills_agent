@@ -7,35 +7,43 @@
 </head>
 <body class="bg-slate-50 h-screen font-sans">
     
-    <!-- Navbar -->
     <nav class="bg-indigo-600 text-white p-4 shadow-md flex justify-between items-center">
         <h1 class="text-2xl font-bold">🚀 SkillFlow Platform</h1>
         <span class="bg-indigo-800 px-3 py-1 rounded text-sm">Status: Online</span>
     </nav>
 
     <div class="flex h-[calc(100vh-64px)]">
-        <!-- Sol Menü: Skiller -->
-        <div class="w-1/4 bg-white border-r p-4 overflow-y-auto">
+        <!-- Sol Menü -->
+        <div class="w-1/4 bg-white border-r p-4 flex flex-col">
             <h2 class="text-lg font-bold mb-4 text-gray-700">📚 Pazar Yeri (Skills)</h2>
-            <div id="skills-list" class="space-y-3">
+            
+            <div id="skills-list" class="space-y-3 flex-1 overflow-y-auto mb-4">
                 <p class="text-gray-500 text-sm">Yükleniyor...</p>
             </div>
+
+            <!-- YENİ: GITHUB BUTONU -->
+            <button onclick="importFromGithub()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded shadow transition flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                Github'dan İndir
+            </button>
         </div>
 
-        <!-- Ana Alan: Ajan Prompt -->
+        <!-- Ana Alan -->
         <div class="w-3/4 p-8 flex flex-col gap-6">
             <div class="bg-white p-6 rounded-lg shadow border">
                 <h2 class="text-xl font-bold mb-2">🤖 Otonom Ajan'a Görev Ver</h2>
-                <p class="text-gray-500 mb-4 text-sm">Ajan, isteğine göre pazar yerinden uygun araçları bulup bir iş akışı (JSON) çizecek.</p>
+                <textarea id="promptInput" rows="3" class="w-full border p-3 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Örn: Github'dan indirdiğim X aracını kullanarak Y işlemini yap."></textarea>
                 
-                <textarea id="promptInput" rows="3" class="w-full border p-3 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Örn: Webden fiyat çek ve terminale yazdır..."></textarea>
-                
-                <button onclick="createPlan()" id="planBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded transition">
-                    İş Akışı Çiz (Planla)
-                </button>
+                <div class="flex gap-4">
+                    <button onclick="createPlan()" id="planBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded transition">
+                        1. İş Akışı Çiz (Planla)
+                    </button>
+                    <button onclick="executeWorkflow()" id="runBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded transition hidden">
+                        2. 🚀 Akışı Çalıştır!
+                    </button>
+                </div>
             </div>
 
-            <!-- Sonuç Alanı -->
             <div class="bg-gray-900 text-green-400 p-6 rounded-lg shadow flex-1 overflow-y-auto font-mono text-sm relative">
                 <h3 class="text-white mb-2 font-bold uppercase tracking-wider">Terminal Çıktısı</h3>
                 <pre id="outputLog">Hazır. Görev bekliyor...</pre>
@@ -45,17 +53,14 @@
 
     <script>
         const API_URL = "http://localhost:8080/api";
+        let currentWorkflowPlan = null;
 
-        // Sayfa açılınca Skilleri çek
         async function fetchSkills() {
             try {
                 const res = await fetch(`${API_URL}/skills`);
-                if (!res.ok) throw new Error("Ağ hatası");
-                
                 const skills = await res.json();
                 const list = document.getElementById("skills-list");
                 list.innerHTML = "";
-                
                 skills.forEach(s => {
                     list.innerHTML += `
                         <div class="p-3 bg-slate-50 border rounded hover:shadow transition">
@@ -65,46 +70,104 @@
                     `;
                 });
             } catch (err) {
-                document.getElementById("skills-list").innerHTML = `<p class="text-red-500 text-sm">Backend'e bağlanılamadı. Docker'ın çalıştığından emin ol.</p>`;
+                document.getElementById("skills-list").innerHTML = `<p class="text-red-500 text-sm">Hata: ${err.message}</p>`;
             }
         }
 
-        // Prompt gönder ve Planı Göster
+        // YENİ: GITHUB'DAN INDİRME FONKSİYONU
+        async function importFromGithub() {
+            const url = prompt("Lütfen yetenek (.py) dosyasının Github URL'sini yapıştırın:\n(Örn: https://gist.githubusercontent.com/...)");
+            if (!url) return;
+
+            const output = document.getElementById("outputLog");
+            output.innerHTML = `🌐 Github'dan yetenek indiriliyor: ${url}...\n`;
+
+            try {
+                const res = await fetch(`${API_URL}/skills/import`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: url })
+                });
+                const data = await res.json();
+
+                if(res.ok) {
+                    output.innerHTML += `\n✅ BAŞARILI: ${data.message}\n`;
+                    fetchSkills(); // Sol menüyü anında güncelle!
+                } else {
+                    output.innerHTML += `\n❌ HATA: ${data.detail}\n`;
+                }
+            } catch (err) {
+                output.innerHTML += `\n❌ Bağlantı hatası: ${err.message}\n`;
+            }
+        }
+
         async function createPlan() {
             const btn = document.getElementById("planBtn");
+            const runBtn = document.getElementById("runBtn");
             const output = document.getElementById("outputLog");
-            const prompt = document.getElementById("promptInput").value;
+            const promptStr = document.getElementById("promptInput").value;
 
-            if(!prompt) return alert("Lütfen bir görev girin!");
+            if(!promptStr) return alert("Lütfen bir görev girin!");
 
             btn.innerText = "Ajan Düşünüyor...";
             btn.disabled = true;
-            output.innerHTML = "Ajan kütüphaneyi tarıyor ve plan oluşturuyor...\n";
+            runBtn.classList.add("hidden");
+            output.innerHTML = "Ajan plan oluşturuyor...\n";
 
             try {
                 const res = await fetch(`${API_URL}/agent/plan`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ prompt })
+                    body: JSON.stringify({ prompt: promptStr })
                 });
                 
                 const data = await res.json();
                 if(res.ok) {
-                    output.innerHTML += `✅ Model: ${data.model_used}\n`;
-                    output.innerHTML += `🎯 Seçilen Yetenekler: ${data.selected_skills.join(", ")}\n\n`;
-                    output.innerHTML += `📄 OLUŞTURULAN İŞ AKIŞI (JSON):\n${JSON.stringify(data.workflow_plan, null, 2)}`;
+                    currentWorkflowPlan = data.workflow_plan;
+                    output.innerHTML += `📄 İŞ AKIŞI HAZIR:\n${JSON.stringify(currentWorkflowPlan, null, 2)}`;
+                    runBtn.classList.remove("hidden");
                 } else {
                     output.innerHTML += `\n❌ HATA: ${data.detail}`;
                 }
             } catch (err) {
-                output.innerHTML += `\n❌ Bağlantı hatası: ${err.message}`;
+                output.innerHTML += `\n❌ Hata: ${err.message}`;
             }
-
-            btn.innerText = "İş Akışı Çiz (Planla)";
+            btn.innerText = "1. İş Akışı Çiz (Planla)";
             btn.disabled = false;
         }
 
-        // Başlangıçta çalıştır
+        async function executeWorkflow() {
+            const runBtn = document.getElementById("runBtn");
+            const output = document.getElementById("outputLog");
+
+            if(!currentWorkflowPlan) return;
+
+            runBtn.innerText = "Çalıştırılıyor...";
+            runBtn.disabled = true;
+            output.innerHTML += "\n\n========================================\n🚀 MOTOR ÇALIŞTIRILIYOR...\n========================================\n";
+
+            try {
+                const res = await fetch(`${API_URL}/workflow/run`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ steps: currentWorkflowPlan })
+                });
+                
+                const data = await res.json();
+                
+                if(data.status === "success") {
+                    output.innerHTML += `\n✅ GÖREV BAŞARIYLA TAMAMLANDI!\n\nSON DURUM (STATE):\n${JSON.stringify(data.state, null, 2)}`;
+                } else {
+                    output.innerHTML += `\n❌ ÇALIŞTIRMA HATASI:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (err) {
+                output.innerHTML += `\n❌ Hata: ${err.message}`;
+            }
+            
+            runBtn.innerText = "2. 🚀 Akışı Çalıştır!";
+            runBtn.disabled = false;
+        }
+
         fetchSkills();
     </script>
 </body>
