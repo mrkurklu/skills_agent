@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>SkillFlow Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 h-screen font-sans">
+    
+    <!-- Navbar -->
+    <nav class="bg-indigo-600 text-white p-4 shadow-md flex justify-between items-center">
+        <h1 class="text-2xl font-bold">🚀 SkillFlow Platform</h1>
+        <span class="bg-indigo-800 px-3 py-1 rounded text-sm">Status: Online</span>
+    </nav>
+
+    <div class="flex h-[calc(100vh-64px)]">
+        <!-- Sol Menü: Skiller -->
+        <div class="w-1/4 bg-white border-r p-4 overflow-y-auto">
+            <h2 class="text-lg font-bold mb-4 text-gray-700">📚 Pazar Yeri (Skills)</h2>
+            <div id="skills-list" class="space-y-3">
+                <p class="text-gray-500 text-sm">Yükleniyor...</p>
+            </div>
+        </div>
+
+        <!-- Ana Alan: Ajan Prompt -->
+        <div class="w-3/4 p-8 flex flex-col gap-6">
+            <div class="bg-white p-6 rounded-lg shadow border">
+                <h2 class="text-xl font-bold mb-2">🤖 Otonom Ajan'a Görev Ver</h2>
+                <p class="text-gray-500 mb-4 text-sm">Ajan, isteğine göre pazar yerinden uygun araçları bulup bir iş akışı (JSON) çizecek.</p>
+                
+                <textarea id="promptInput" rows="3" class="w-full border p-3 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Örn: Webden fiyat çek ve terminale yazdır..."></textarea>
+                
+                <button onclick="createPlan()" id="planBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded transition">
+                    İş Akışı Çiz (Planla)
+                </button>
+            </div>
+
+            <!-- Sonuç Alanı -->
+            <div class="bg-gray-900 text-green-400 p-6 rounded-lg shadow flex-1 overflow-y-auto font-mono text-sm relative">
+                <h3 class="text-white mb-2 font-bold uppercase tracking-wider">Terminal Çıktısı</h3>
+                <pre id="outputLog">Hazır. Görev bekliyor...</pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8080/api";
+
+        // Sayfa açılınca Skilleri çek
+        async function fetchSkills() {
+            try {
+                const res = await fetch(`${API_URL}/skills`);
+                if (!res.ok) throw new Error("Ağ hatası");
+                
+                const skills = await res.json();
+                const list = document.getElementById("skills-list");
+                list.innerHTML = "";
+                
+                skills.forEach(s => {
+                    list.innerHTML += `
+                        <div class="p-3 bg-slate-50 border rounded hover:shadow transition">
+                            <span class="font-bold text-indigo-600 text-sm">${s.name}</span>
+                            <p class="text-xs text-gray-600 mt-1">${s.description}</p>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                document.getElementById("skills-list").innerHTML = `<p class="text-red-500 text-sm">Backend'e bağlanılamadı. Docker'ın çalıştığından emin ol.</p>`;
+            }
+        }
+
+        // Prompt gönder ve Planı Göster
+        async function createPlan() {
+            const btn = document.getElementById("planBtn");
+            const output = document.getElementById("outputLog");
+            const prompt = document.getElementById("promptInput").value;
+
+            if(!prompt) return alert("Lütfen bir görev girin!");
+
+            btn.innerText = "Ajan Düşünüyor...";
+            btn.disabled = true;
+            output.innerHTML = "Ajan kütüphaneyi tarıyor ve plan oluşturuyor...\n";
+
+            try {
+                const res = await fetch(`${API_URL}/agent/plan`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt })
+                });
+                
+                const data = await res.json();
+                if(res.ok) {
+                    output.innerHTML += `✅ Model: ${data.model_used}\n`;
+                    output.innerHTML += `🎯 Seçilen Yetenekler: ${data.selected_skills.join(", ")}\n\n`;
+                    output.innerHTML += `📄 OLUŞTURULAN İŞ AKIŞI (JSON):\n${JSON.stringify(data.workflow_plan, null, 2)}`;
+                } else {
+                    output.innerHTML += `\n❌ HATA: ${data.detail}`;
+                }
+            } catch (err) {
+                output.innerHTML += `\n❌ Bağlantı hatası: ${err.message}`;
+            }
+
+            btn.innerText = "İş Akışı Çiz (Planla)";
+            btn.disabled = false;
+        }
+
+        // Başlangıçta çalıştır
+        fetchSkills();
+    </script>
+</body>
+</html>

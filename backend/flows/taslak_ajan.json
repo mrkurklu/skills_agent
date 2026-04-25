@@ -1,0 +1,16 @@
+[
+  {
+    "step_id": "fetch_elazig_donerciler",
+    "skill_name": "api_request",
+    "inputs": {
+      "url": "https://www.google.com/search?q=elazığ+dönerciler"
+    }
+  },
+  {
+    "step_id": "save_donerciler_list",
+    "skill_name": "run_command",
+    "inputs": {
+      "command": "echo \"{fetch_elazig_donerciler.result}\" > elazig-donerciler.txt"
+    }
+  }
+]
